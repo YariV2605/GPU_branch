@@ -1,7 +1,11 @@
 #include <string>
 #include <iostream>
+#include "Input.h"
+
+__global__ void treeSearch(Input* in, int umpire){
+    //TODO
+};
 
 int main(){
-    std::string s = "hello";
-    std::cout << "substring?: " << s[4] << std::endl;
+    Input* i = new Input();
 }

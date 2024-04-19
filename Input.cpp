@@ -1,7 +1,7 @@
-#include "input.h"
+#include "Input.h"
 #include <vector>
 
-void input::init(){
+Input::Input(){
     nTeams = 20;
     nUmpires = nTeams/2;
     nRounds = 2*nTeams-2;
@@ -69,8 +69,40 @@ void input::init(){
         {  19,  20,  15,  17,  10,  13,  18,  14,  12,  -5,  16,  -9,  -6,  -8,  -3, -11,  -4,  -7,  -1,  -2 },
         {  20,  16,  13,  14,  18,  17,  11,  10,  19,  -8,  -7, -15,  -3,  -4,  12,  -2,  -6,  -5,  -9,  -1 }
     };
+
+    for(int round = 0; round < nRounds;  round++){
+        int i = 0;
+        for(int teams = 0; teams < nTeams; teams++) {
+            int opp = opponents[round][teams];
+            if (opp > 0) {
+                games[round][i][0] = teams + 1;
+                games[round][i][1] = opp;
+                i++;
+            }
+        }
+    }
 }
 
-int input::getDist(int i, int j){
+int Input::getDist(int i, int j){
     return dist[i][j];
+}
+
+int Input::getnUmpires(){
+    return nUmpires;
+}
+
+int Input::getnTeams(){
+    return nTeams;
+}
+
+int Input::getnRounds(){
+    return nRounds;
+}
+
+int Input::getGame(int round, int gameNr, bool away){
+    return games[round][gameNr][(int)away];
+}
+
+int Input::getOpponent(int team, int round){
+    return opponents [round][team];
 }
