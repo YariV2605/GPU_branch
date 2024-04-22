@@ -1,7 +1,8 @@
 #include "Input.h"
 #include <vector>
+#include <iostream>
 
-Input::Input() : nTeams(20), nUmpires(nTeams/2), nRounds(2*nTeams-2), q1(10), q2(5){
+Input::Input(){
     dist = {
         {        0,  1270,   396,   189,   739,     480,   364,   554,   805,  1023,     941,  1617,  1753,  2581,  1237,    2682,   189,  1542,   394,   255 },
         {     1270,     0,  1201,  1104,   972,    1024,   960,  1094,  1028,   329,     820,   967,  1710,  2258,  1246,    2571,  1104,  1109,   933,  1047 },
@@ -79,26 +80,14 @@ Input::Input() : nTeams(20), nUmpires(nTeams/2), nRounds(2*nTeams-2), q1(10), q2
     }
 }
 
-int Input::getDist(int i, int j){
+int Input::getDist(int i, int j)const{
     return dist[i][j];
 }
 
-int Input::getnUmpires(){
-    return nUmpires;
-}
-
-int Input::getnTeams(){
-    return nTeams;
-}
-
-int Input::getnRounds(){
-    return nRounds;
-}
-
-int Input::getGame(int round, int gameNr, bool away){
+int Input::getGame(int round, int gameNr, bool away)const{
     return games[round][gameNr][(int)away];
 }
 
-int Input::getOpponent(int team, int round){
+int Input::getOpponent(int team, int round)const{
     return opponents [round][team];
 }
