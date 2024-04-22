@@ -1,11 +1,7 @@
 #include "Input.h"
 #include <vector>
 
-Input::Input(){
-    nTeams = 20;
-    nUmpires = nTeams/2;
-    nRounds = 2*nTeams-2;
-    
+Input::Input() : nTeams(20), nUmpires(nTeams/2), nRounds(2*nTeams-2), q1(10), q2(5){
     dist = {
         {        0,  1270,   396,   189,   739,     480,   364,   554,   805,  1023,     941,  1617,  1753,  2581,  1237,    2682,   189,  1542,   394,   255 },
         {     1270,     0,  1201,  1104,   972,    1024,   960,  1094,  1028,   329,     820,   967,  1710,  2258,  1246,    2571,  1104,  1109,   933,  1047 },
@@ -75,8 +71,8 @@ Input::Input(){
         for(int teams = 0; teams < nTeams; teams++) {
             int opp = opponents[round][teams];
             if (opp > 0) {
-                games[round][i][0] = teams + 1;
-                games[round][i][1] = opp;
+                games[round][i][0] = teams;
+                games[round][i][1] = opp - 1;
                 i++;
             }
         }
