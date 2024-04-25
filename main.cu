@@ -77,3 +77,19 @@ int main(){
     }
     DFS(i, visited, 0, 0, w);
 }
+
+
+
+//TODO mogelijke return:
+
+class ReturnType{
+    ReturnType* previous;//start: nullptr
+    int distance;
+public:
+    ReturnType(ReturnType* prev, int extraDist): previous(prev){
+        distance = prev->distance + extraDist;
+    }
+    ~ReturnType(){
+        delete previous;
+    }
+};
