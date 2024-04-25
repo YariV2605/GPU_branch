@@ -85,10 +85,13 @@ int main(){
 class ReturnType{
     ReturnType* previous;//start: nullptr
     int distance;
+    int depth;
 public:
-    ReturnType(ReturnType* prev, int extraDist): previous(prev){
-        distance = prev->distance + extraDist;
-    }
+    ReturnType(ReturnType* prev, int extraDist):
+        previous(prev),
+        distance(prev->distance + extraDist),
+        depth(prev->depth + 1)
+        {}
     ~ReturnType(){
         delete previous;
     }
