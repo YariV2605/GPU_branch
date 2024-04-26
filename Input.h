@@ -1,6 +1,3 @@
-#ifndef GPU_BRANCH_H
-#define GPU_BRANCH_H
-
 #include <vector>
 #define nRounds 38
 #define nTeams 20
@@ -30,5 +27,3 @@ public:
      */
     int getOpponent(int team, int round)const;
 };
-
-#endif
