@@ -138,7 +138,6 @@ __device__ bool beenEverywhere(ReturnType* toTest) {
 
 
 
-//TODO delete all non-chosen nodes
 __global__ void DFS_GPU(const Input *const in, ReturnType** ret, const double v, const double w[nTeams][nRounds]){
     int index = threadIdx.x;
 
@@ -193,7 +192,7 @@ __global__ void DFS_GPU(const Input *const in, ReturnType** ret, const double v,
 
 
 
-int main(){//TODO mem nar GPU verplaatsen
+int main(){
     Input* in = new Input();
     double w[nTeams][nRounds];
     for (int i = 0; i < nTeams; i++){
@@ -201,24 +200,34 @@ int main(){//TODO mem nar GPU verplaatsen
             w[i][r] = 0;
         }
     }
-    ReturnType* t = new ReturnType(3);
+    ReturnType* t_element = new ReturnType(3);
     Input* in_gpu;
+    ReturnType* t_element_gpu;
     ReturnType** t_gpu;
 
-    cudaMalloc(&in_gpu, sizeof(Input));
-    cudaMalloc(&t_gpu, 1*sizeof(ReturnType*));//deze array zal maar 1 element groot zijn
 
-    DFS_GPU<<<1, 1>>>(in, &t, 0, w);
-    ReturnType* a = t;
-    std::cout << "dist: " << t->getDistance() << std::endl;
-    std::cout << t->getLocation() << " ";
-    while (t->getPrevious() != nullptr){
-        t = t->getPrevious();
-        std::cout << t->getLocation() << " ";
+
+    cudaMalloc(&in_gpu, sizeof(Input));
+    cudaMemcpy(in_gpu, in, sizeof(Input), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&t_element_gpu, sizeof(ReturnType));//deze array zal maar 1 element groot zijn
+    cudaMemcpy(t_element_gpu, t_element, sizeof(ReturnType), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&t_gpu, 1*sizeof(ReturnType*));
+    cudaMemcpy(t_gpu, &t_element, sizeof(ReturnType*), cudaMemcpyHostToDevice);
+
+
+
+    DFS_GPU<<<1, 1>>>(in, &t_element, 0, w);
+    //TODO mem terug naar host copy-en
+
+    ReturnType* a = t_element;
+    std::cout << "dist: " << t_element->getDistance() << std::endl;
+    std::cout << t_element->getLocation() << " ";
+    while (t_element->getPrevious() != nullptr){
+        t_element = t_element->getPrevious();
+        std::cout << t_element->getLocation() << " ";
     }
     std::cout << std::endl;
     delete(a);
 }
-
-
-//GPU-only function: __device__
