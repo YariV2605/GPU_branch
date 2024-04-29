@@ -11,10 +11,13 @@ public:
         location(loc)
     {}
     ReturnType(int loc): previous(nullptr), distance(0), depth(0), location(loc){}
-    ~ReturnType(){
-        if(previous != nullptr)
-            delete previous;
-    }
+    ReturnType(ReturnType* toCopy): 
+        previous(toCopy->previous),
+        distance(toCopy->distance),
+        depth(toCopy->depth),
+        location(toCopy->location)
+    {}
+    ~ReturnType(){}
 
     ReturnType* getPrevious() const{
         return previous;

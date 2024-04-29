@@ -1,14 +1,14 @@
 #include <vector>
-#define nRounds 38
-#define nTeams 20
-#define nUmpires 10
-#define q1 10
-#define q2 5
+#define nRounds 14
+#define nTeams 8
+#define nUmpires 4
+#define q1 4
+#define q2 2
 
 class Input{
     std::vector<std::vector<int>> dist;
     std::vector<std::vector<int>> opponents;
-    int games[nRounds][nTeams/4][2];
+    int games[nRounds][nTeams/2][2];
 
 public:
     Input();

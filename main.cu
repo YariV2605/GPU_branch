@@ -11,12 +11,7 @@
 #define THREAD_PER_BLOCK 1
 
 
-__global__ void treeSearch(Input* in, int a_s[nTeams][nRounds], double costReduction, double dualCostW[nTeams][nRounds]){
-    //TODO
-    if(in != nullptr){
-        
-    }
-}
+
 
 //TODO op het einde ook checken of ump op alle locaties geweest is
 bool testFeasibility(int currentPath[nRounds][2], int pathSize, int gameIndex, Input const*const in){
@@ -42,23 +37,7 @@ bool testFeasibility(int currentPath[nRounds][2], int pathSize, int gameIndex, I
     return true;
 }
 
-
-void DFS(Input const*const in, int visited[nRounds][2], int amountVisited, double cost, double w[nTeams][nRounds]){
-    if (in == nullptr) return;
-    if (amountVisited > 0){
-        int round = amountVisited - 1;
-        cost += w[visited[round][0]][round];
-    }
-    if (amountVisited < nRounds){
-        for (int game = 0; game < nUmpires; game++){
-            if (testFeasibility(visited, amountVisited, game, in)){
-                DFS(in, visited, amountVisited, cost, w);
-            }
-        }
-    }
-}
-
-bool q1_constr(const ReturnType *const toTest){
+__device__ bool q1_constr(const ReturnType *const toTest){
     if (toTest == nullptr) std::cout << "nog nullptr's q1" << std::endl;
     int locationToTest = toTest->getLocation();
     ReturnType* testing = toTest->getPrevious();
@@ -73,7 +52,7 @@ bool q1_constr(const ReturnType *const toTest){
     return true;
 }
 
-bool q2_constr(const ReturnType *const toTest, const Input *const in){
+__device__ bool q2_constr(const ReturnType *const toTest, const Input *const in){
     if (toTest == nullptr) std::cout << "nog nullptr's q2" << std::endl;
     int loc = toTest->getLocation();
     int opponent = in->getOpponent(loc, toTest->getDepth());
@@ -98,41 +77,9 @@ bool q2_constr(const ReturnType *const toTest, const Input *const in){
     return true;
 }
 
-//TODO een cost calc toevoegen
-void DFS_new(const Input *const in, ReturnType* ret, const double v, const double w[nTeams][nRounds]){
-    if (in == nullptr       ||
-        ret == nullptr      ||
-        !q1_constr(ret)     ||
-        !q2_constr(ret, in)
-    ) {
-        ret = nullptr;
-        return;
-    }
-
-    //nRounds - 1 omdat na de laatste ronde niet dieper moeet gegaan worden
-    if (ret->getDepth() < nRounds - 1){
-        //dieper door gaan
-        ReturnType* fromDeeper[10];
-        for (int i = 0; i < nTeams/2; i++){
-            int next_loc = in->getGame(ret->getDepth()+1, i, false);
-            if(ret == nullptr) std::cout << "weeral" << std:: endl;
-            fromDeeper[i] = new ReturnType(ret, in->getDist(ret->getLocation(), next_loc), next_loc);
-            DFS_new(in, fromDeeper[i], v, w);
-        }
-        int minDist= 0x7fffffff;
-        ret = nullptr;
-        for (ReturnType* test: fromDeeper){
-            if (test!=nullptr &&
-                test->getDistance() < minDist
-            ){
-                ret = test;
-                minDist = test->getDistance();
-            }
-        }
-    }
-    //TODO check of elk team bezocht is --> zoniet ret == nullptr
-    if (ret->getDepth() == nRounds - 1){
-        ReturnType* testing = ret;
+__device__ bool beenEverywhere(ReturnType* toTest) {
+    if (toTest->getDepth() == nRounds - 1){
+        ReturnType* testing = new ReturnType(toTest);
         int teamVisited[nTeams];
         for (int i = 0; i < nTeams; i++){
             teamVisited[i] = 0;
@@ -147,37 +94,130 @@ void DFS_new(const Input *const in, ReturnType* ret, const double v, const doubl
         }
         //verschillend als 0 gevonden is --> er is een team niet bezocht.
         if (std::end(teamVisited) != std::find(std::begin(teamVisited), std::end(teamVisited), 0)){
-            ret = nullptr;
+            return false;
+        }
+    }
+    return true;
+}
+
+//WERKT NIET!!!!!
+// void DFS_new(const Input *const in, ReturnType** ret, const double v, const double w[nTeams][nRounds]){
+//     if (in == nullptr       ||
+//         ret == nullptr      ||
+//         !q1_constr(*ret)     ||
+//         !q2_constr(*ret, in)
+//     ) {
+//         ret = nullptr;
+//         return;
+//     }
+
+//     //nRounds - 1 omdat na de laatste ronde niet dieper moeet gegaan worden
+//     if ((*ret)->getDepth() < nRounds - 1){
+//         //dieper door gaan
+//         ReturnType* fromDeeper[nTeams/2];
+//         for (int i = 0; i < nTeams/2; i++){
+//             int next_loc = in->getGame((*ret)->getDepth()+1, i, false);
+//             if(ret == nullptr) std::cout << "weeral" << std:: endl;
+//             fromDeeper[i] = new ReturnType(*ret, in->getDist((*ret)->getLocation(), next_loc), next_loc);
+//             DFS_new(in, &fromDeeper[i], v, w);
+//         }
+//         int minDist= 0x7fffffff;
+//         *ret = nullptr;
+//         for (ReturnType* test: fromDeeper){
+//             //FIXME een probleem met get Distance die wordt uitgevoerd op ongeldig memory ?? opgelost door een copyConstructor ??
+//             if (test!=nullptr &&
+//                 test->getDistance() < minDist &&
+//                 beenEverywhere(test)
+//             ){
+//                 *ret = test;
+//                 minDist = test->getDistance();
+//             }
+//         }
+//     }
+// }
+
+
+
+//TODO delete all non-chosen nodes
+__global__ void DFS_GPU(const Input *const in, ReturnType** ret, const double v, const double w[nTeams][nRounds]){
+    int index = threadIdx.x;
+
+
+    //if infesible (or incorrect call)
+    if (in  == nullptr      ||
+        ret == nullptr      ||
+        !q1_constr(ret[index])     ||
+        !q2_constr(ret[index], in)
+    ){
+        delete (ret[index]);
+        ret[index] = nullptr;
+        return;
+    }
+
+    //if not yet at deepest level
+    if (ret[index]->getDepth() < nRounds - 1){
+        ReturnType* nextNodes[nTeams/2];
+        for (int i = 0; i < nTeams/2; i++){
+            int nextLocation = in->getGame(ret[index]->getDepth()+1, i, false);
+            nextNodes[i] = new ReturnType(ret[index], in->getDist(ret[index]->getLocation(), nextLocation), nextLocation);
+        }
+        DFS_GPU<<<1, nTeams/2>>>(in, nextNodes, v, w);
+        //set this ret to the best possible (or nullptr if none are possible)
+        int minDistance = 0x7fffffff;
+        ret[index] = nullptr;
+        for (int i = 0; i < nTeams/2; i++){
+            if (nextNodes[i] != nullptr &&
+                nextNodes[i]->getDistance() < minDistance &&
+                beenEverywhere(nextNodes[i])
+            ){
+                minDistance = nextNodes[i]->getDistance();
+                ret[index] = nextNodes[i];
+            }
+        }
+        //delete all unneeded nodes
+        for (int i = 0; i < nTeams/2; i++){
+            if(nextNodes[i] != ret[index]){
+                delete nextNodes[i];
+            }
+        }
+    }
+    //reached last node
+    if (ret[index]->getDepth() == nRounds - 1){
+        if(!beenEverywhere(ret[index])) {
+            delete (ret[index]);
+            ret[index] = nullptr;
+            return;
         }
     }
 }
 
 
-int main(){
-    std::cout << "hello";
-    Input* i = new Input();
-    int a_s[nTeams][nRounds];
-    for (int i = 0; i < nTeams; i++){
-        for (int r = 0; r < nRounds; r++){
-            a_s[i][r] = 0;
-        }
-    }
+
+int main(){//TODO mem nar GPU verplaatsen
+    Input* in = new Input();
     double w[nTeams][nRounds];
     for (int i = 0; i < nTeams; i++){
         for (int r = 0; r < nRounds; r++){
             w[i][r] = 0;
         }
     }
-    // treeSearch<<<BLOCKS, THREAD_PER_BLOCK>>>(i, a_s, 0, w);
-    int visited[nRounds][2];
-    for (int r = 0; r < nRounds; r++){
-        visited[r][0] = -1;
-        visited[r][1] = -1;
-    }
     ReturnType* t = new ReturnType(3);
-    DFS_new(i, t, 0, w);
+    Input* in_gpu;
+    ReturnType** t_gpu;
+
+    cudaMalloc(&in_gpu, sizeof(Input));
+    cudaMalloc(&t_gpu, 1*sizeof(ReturnType*));//deze array zal maar 1 element groot zijn
+
+    DFS_GPU<<<1, 1>>>(in, &t, 0, w);
+    ReturnType* a = t;
     std::cout << "dist: " << t->getDistance() << std::endl;
-    delete(t);
+    std::cout << t->getLocation() << " ";
+    while (t->getPrevious() != nullptr){
+        t = t->getPrevious();
+        std::cout << t->getLocation() << " ";
+    }
+    std::cout << std::endl;
+    delete(a);
 }
 
 
