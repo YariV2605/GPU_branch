@@ -6,11 +6,14 @@
             "label": "C/C++: g++ build active file",
             "command": "nvcc",
             "args": [
+                "-rdc=true",
+                "-arch=sm_87",
                 "-g",
                 "${file}",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}",
-                "Input.cpp"
+                "Input.cu",
+                //"-lcudadevrt"
             ],
             "group": {
                 "kind": "build",

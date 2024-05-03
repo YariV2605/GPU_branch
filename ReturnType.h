@@ -1,34 +1,51 @@
+#ifdef __CUDACC__
+#define CUDA_CALLABLE_MEMBER __host__ __device__
+#else
+#define CUDA_CALLABLE_MEMBER
+#endif 
+
+
 class ReturnType{
     ReturnType* previous;//start: nullptr
     int distance;
     int depth;
     int location;
 public:
-    ReturnType(ReturnType* prev, int extraDist, int loc):
+    __device__ ReturnType(ReturnType* prev, int extraDist, int loc):
         previous(prev),
         distance(prev->distance + extraDist),
         depth(prev->depth + 1),
         location(loc)
     {}
-    ReturnType(int loc): previous(nullptr), distance(0), depth(0), location(loc){}
-    ReturnType(ReturnType* toCopy): 
+    CUDA_CALLABLE_MEMBER ReturnType(int loc): previous(nullptr), distance(0), depth(0), location(loc){}
+    __device__ ReturnType(ReturnType* toCopy): 
         previous(toCopy->previous),
         distance(toCopy->distance),
         depth(toCopy->depth),
         location(toCopy->location)
     {}
-    ~ReturnType(){}
+    CUDA_CALLABLE_MEMBER ~ReturnType(){}
 
-    ReturnType* getPrevious() const{
+    __device__ __host__ ReturnType* getPrevious() const{
         return previous;
     }
-    int getDistance() const{
+    __device__ __host__ int getDistance() const{
         return distance;
     }
-    int getDepth() const{
+    __device__ int getDepth() const{
         return depth;
     }
-    int getLocation() const{
+    __device__ __host__ int getLocation() const{
         return location;
     }
+
+    // __host__ ReturnType* getPrevious(bool dummy) const{
+    //     return previous;
+    // }
+    // __host__ int getDistance(bool dummy) const{
+    //     return distance;
+    // }    
+    // __host__ int getLocation(bool dummy) const{
+    //     return location;
+    // }
 };
