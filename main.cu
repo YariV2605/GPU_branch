@@ -209,7 +209,7 @@ int main(){
     ReturnType** t_gpu;
 
 
-    //FIXME
+    //FIXME (zie lijn 221)
     cudaMalloc(&t_element_gpu, 1*sizeof(ReturnType));//deze array zal maar 1 element groot zijn
     cudaMemcpy(t_element_gpu, t_element, sizeof(ReturnType), cudaMemcpyHostToDevice);
 
@@ -218,6 +218,8 @@ int main(){
 
 
 
+    //TODO thuis:
+    //  DFS_GPU<<<1, 1>>>(in, &t_gpu, 0, w);    t_gpu i.p.v. &t_element_gpu
     DFS_GPU<<<1, 1>>>(in, &t_element_gpu, 0, w);
     cudaDeviceSynchronize();
     std::cout << cudaGetErrorString(cudaGetLastError()) << std::endl;
