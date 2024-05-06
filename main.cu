@@ -7,9 +7,6 @@
 #include "Input.h"
 #include "ReturnType.h"
 
-#define BLOCKS 1
-#define THREAD_PER_BLOCK 1
-
 
 
 
@@ -130,9 +127,7 @@ __device__ bool beenEverywhere(ReturnType* toTest) {
 
 
 
-__global__ void DFS_GPU(const Input in, ReturnType** ret, const double v, const double w[nTeams][nRounds]){
-    //FIXME ret[0] is een illegal memory acces, cuda malloc zal dus niet werken zoals ik bedoeld had.
-    printf("%d", ret[0]);
+__global__ void DFS_GPU(const Input in, ReturnType** ret/*, const double v, const double w[nTeams][nRounds]*/){
     int index = threadIdx.x;
 
 
@@ -143,23 +138,24 @@ __global__ void DFS_GPU(const Input in, ReturnType** ret, const double v, const 
     ){
         delete (ret[index]);
         ret[index] = nullptr;
+        printf("not branching futher\n");
         __syncthreads();
         return;
     }
 
-    printf("depth: %d", ret[index]->getDepth());
+    printf("depth: %d\n", ret[index]->getDepth());
 
     //if not yet at deepest level
     if (ret[index]->getDepth() < nRounds - 1){
-        ReturnType* nextNodes[nTeams/2];
-        ReturnType** nextNodes_gpu = nullptr;
+        //dynamic allocation in order to be able to pass it to the next level (can't be in local)
+        ReturnType** nextNodes = (ReturnType**)malloc(nTeams/2 * sizeof(ReturnType*));
 
         for (int i = 0; i < nTeams/2; i++){
             int nextLocation = in.getGame(ret[index]->getDepth()+1, i, false);
             nextNodes[i] = new ReturnType(ret[index], in.getDist(ret[index]->getLocation(), nextLocation), nextLocation);
         }
 
-        DFS_GPU<<<1, nTeams/2>>>(in, nextNodes_gpu, v, w);
+        DFS_GPU<<<1, nTeams/2>>>(in, nextNodes/*, v, w*/);
         
         //set this ret to the best possible (or nullptr if none are possible)
         int minDistance = 0x7fffffff;
@@ -169,6 +165,7 @@ __global__ void DFS_GPU(const Input in, ReturnType** ret, const double v, const 
         for (int i = 0; i < nTeams/2; i++){
             if (nextNodes[i] != nullptr &&
                 nextNodes[i]->getDistance() < minDistance &&
+                // nextNodes[i]->getDepth() == nRounds - 1 &&
                 beenEverywhere(nextNodes[i])
             ){
                 minDistance = nextNodes[i]->getDistance();
@@ -177,10 +174,12 @@ __global__ void DFS_GPU(const Input in, ReturnType** ret, const double v, const 
         }
         //delete all unneeded nodes
         for (int i = 0; i < nTeams/2; i++){
-            if(nextNodes[i] != ret[index]){
+            if(nextNodes[i] != ret[index] /*&& nextNodes[i] != nullptr*/){
                 delete nextNodes[i];
+                // nextNodes[i] = nullptr;
             }
         }
+        free (nextNodes);
     }
     //reached last node
     if (ret[index]->getDepth() == nRounds - 1){
@@ -195,9 +194,107 @@ __global__ void DFS_GPU(const Input in, ReturnType** ret, const double v, const 
 }
 
 
+__global__ void DFS_GPU2(const Input in, int** ret/*, const double v, const double w[nTeams][nRounds]*/){
+    int index = threadIdx.x;
+
+
+    //if infesible (or incorrect call)
+    if (ret == nullptr              /*||
+        !q1_constr(ret[index])      ||
+        !q2_constr(ret[index], in)*/
+    ){
+        delete (ret[index]);
+        ret[index] = nullptr;
+        printf("not branching futher\n");
+        __syncthreads();
+        return;
+    }
+
+    // printf("depth: %d\n", ret[index]->getDepth());
+
+    //if not yet at deepest level
+    // if (ret[index]->getDepth() < nRounds - 1){
+        //dynamic allocation in order to be able to pass it to the next level (can't be in local)
+        int** nextNodes = (int**)malloc(nTeams/2 * sizeof(int*));
+
+        for (int i = 0; i < nTeams/2; i++){
+            // int nextLocation = in.getGame(ret[index]->getDepth()+1, i, false);
+            nextNodes[i] = new int(*ret[index] + 1);
+        }
+
+        DFS_GPU2<<<1, nTeams/2>>>(in, nextNodes/*, v, w*/);
+        
+        //set this ret to the best possible (or nullptr if none are possible)
+        int minDistance = 0x7fffffff;
+        ret[index] = nullptr;
+        //wait for results from next level before continuing
+        cudaDeviceSynchronize();
+        for (int i = 0; i < nTeams/2; i++){
+            if (nextNodes[i] != nullptr //&&
+                // nextNodes[i]->getDistance() < minDistance &&
+                // nextNodes[i]->getDepth() == nRounds - 1 &&
+                // beenEverywhere(nextNodes[i])
+            ){
+                // minDistance = nextNodes[i]->getDistance();
+                ret[index] = nextNodes[i];
+            }
+        }
+        //delete all unneeded nodes
+        for (int i = 0; i < nTeams/2; i++){
+            if(nextNodes[i] != ret[index] /*&& nextNodes[i] != nullptr*/){
+                delete nextNodes[i];
+                // nextNodes[i] = nullptr;
+            }
+        }
+        free (nextNodes);
+    // }
+    //reached last node
+    if (*ret[index] == nRounds - 1){
+        // if(!beenEverywhere(ret[index])) {
+        //     delete (ret[index]);
+        //     ret[index] = nullptr;
+            __syncthreads();
+            return;
+        // }
+    }
+    __syncthreads();
+}
+
+
+__global__ void test(int* i){
+    if(*i < 14){
+        printf("%d\n", *i);
+        int* j = new int(*i + 1);
+        test<<<1, 2>>>(j);
+    }
+}
+
 
 int main(){
+    // int* i_h = new int(0);
+    // int* i;
+    // cudaMalloc(&i, sizeof(int));
+    // cudaMemcpy(i, i_h, sizeof(int), cudaMemcpyHostToDevice);
+    // test<<<1, 1>>>(i);
+    // cudaDeviceSynchronize();
+    // std::cout << cudaGetErrorString(cudaGetLastError()) << std::endl;
+    // int * t_element_i = new int(0);
+
+    // int** tmp_i = (int**) malloc(sizeof(tmp_i[0]));
+    // cudaMalloc(&tmp_i[0], sizeof(tmp_i[0][0]));
+
+    // int** t_gpu_i = 0;
+    // cudaMalloc(&t_gpu_i, sizeof(t_gpu_i[0]));
+    
+    // cudaMemcpy(t_gpu_i, tmp_i, sizeof(t_gpu_i[0]), cudaMemcpyHostToDevice);
+    // cudaMemcpy(tmp_i[0], t_element_i, sizeof(t_gpu_i[0][0]), cudaMemcpyHostToDevice);
+    
+
     Input in = Input();
+
+    // DFS_GPU2<<<1, 1>>>(in, t_gpu_i);
+    // cudaDeviceSynchronize();
+    // std::cout << "error: "<< cudaGetErrorString(cudaGetLastError()) << std::endl;
     double w[nTeams][nRounds];
     for (int i = 0; i < nTeams; i++){
         for (int r = 0; r < nRounds; r++){
@@ -205,26 +302,25 @@ int main(){
         }
     }
     ReturnType* t_element = new ReturnType(3);
-    ReturnType* t_element_gpu;
-    ReturnType** t_gpu;
+
+    ReturnType** tmp = (ReturnType**) malloc(sizeof(tmp[0]));
+    cudaMalloc(&tmp[0], sizeof(tmp[0][0]));
+
+    ReturnType** t_gpu = 0;
+    cudaMalloc(&t_gpu, sizeof(t_gpu[0]));
+    
+    cudaMemcpy(t_gpu, tmp, sizeof(t_gpu[0]), cudaMemcpyHostToDevice);
+    cudaMemcpy(tmp[0], t_element, sizeof(t_gpu[0][0]), cudaMemcpyHostToDevice);
+    
+    free(tmp);
 
 
-    //FIXME (zie lijn 221)
-    cudaMalloc(&t_element_gpu, 1*sizeof(ReturnType));//deze array zal maar 1 element groot zijn
-    cudaMemcpy(t_element_gpu, t_element, sizeof(ReturnType), cudaMemcpyHostToDevice);
 
-    cudaMalloc(&t_gpu, 1*sizeof(ReturnType*));
-    cudaMemcpy(t_gpu, &t_element, sizeof(ReturnType*), cudaMemcpyHostToDevice);
-
-
-
-    //TODO thuis:
-    //  DFS_GPU<<<1, 1>>>(in, &t_gpu, 0, w);    t_gpu i.p.v. &t_element_gpu
-    DFS_GPU<<<1, 1>>>(in, &t_element_gpu, 0, w);
+    DFS_GPU<<<1, 1>>>(in, t_gpu/*, 0, w*/);
     cudaDeviceSynchronize();
     std::cout << cudaGetErrorString(cudaGetLastError()) << std::endl;
 
-    cudaMemcpy(t_element, t_element_gpu, sizeof(ReturnType), cudaMemcpyDeviceToHost);
+    //TODO copy mem to CPU
 
     ReturnType* a = t_element;
     std::cout << "dist: " << t_element->getDistance() << std::endl;

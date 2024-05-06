@@ -38,14 +38,4 @@ public:
     __device__ __host__ int getLocation() const{
         return location;
     }
-
-    // __host__ ReturnType* getPrevious(bool dummy) const{
-    //     return previous;
-    // }
-    // __host__ int getDistance(bool dummy) const{
-    //     return distance;
-    // }    
-    // __host__ int getLocation(bool dummy) const{
-    //     return location;
-    // }
 };
